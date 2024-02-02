@@ -45,8 +45,9 @@ import org.ml4j.nn.sessions.factories.DefaultSessionFactory;
 import org.ml4j.nn.sessions.factories.DefaultSessionFactoryImpl;
 import org.ml4j.nn.supervised.DefaultSupervisedFeedForwardNeuralNetworkFactory;
 import org.ml4j.nn.supervised.SupervisedFeedForwardNeuralNetworkFactory;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.*;
+import org.springframework.core.type.AnnotatedTypeMetadata;
 
 /**
  * @author Michael Lavelle
@@ -55,21 +56,29 @@ import org.springframework.context.annotation.Configuration;
 public class YOLOv2Config {
 
 	@Bean
-	MatrixFactory matrixFactory() {
+	@Conditional(OSX_AArch64Condition.class)
+	MatrixFactory matrixFactoryNd4j() {
 		return new Nd4jRowMajorMatrixFactory();
 	}
 
+
 	@Bean
-	AxonsFactory axonsFactory() {
-		return new DefaultAxonsFactoryImpl(matrixFactory());
+	@Conditional(NonOSX_AArch64Condition.class)
+	MatrixFactory matrixFactoryJBlasOptimised() {
+		return new JBlasRowMajorMatrixFactoryOptimised();
+	}
+
+	@Bean
+	AxonsFactory axonsFactory(@Autowired MatrixFactory matrixFactory) {
+		return new DefaultAxonsFactoryImpl(matrixFactory);
 	}
 	
 	@Bean
-	DirectedComponentFactory directedComponentFactory() {
+	DirectedComponentFactory directedComponentFactory(@Autowired MatrixFactory matrixFactory) {
 		
 		
-		DefaultDirectedComponentFactoryImpl factory = new DefaultDirectedComponentFactoryImpl(matrixFactory(), axonsFactory(), 
-				activationFunctionFactory(), directedComponentsContext());
+		DefaultDirectedComponentFactoryImpl factory = new DefaultDirectedComponentFactoryImpl(matrixFactory, axonsFactory(matrixFactory),
+				activationFunctionFactory(), directedComponentsContext(matrixFactory));
 		
 		DirectedComponentFactoryAdapter adapter = new DirectedComponentFactoryAdapter(factory);
 		factory.setDirectedComponentFactory(adapter);
@@ -79,14 +88,17 @@ public class YOLOv2Config {
 	}
 	
 	@Bean
-	DirectedComponentsContext directedComponentsContext() {
-		return new DirectedComponentsContextImpl(matrixFactory(), false);
+	DirectedComponentsContext directedComponentsContext(@Autowired MatrixFactory matrixFactory) {
+		return new DirectedComponentsContextImpl(matrixFactory, false);
 	}
 
+
+
+
 	@Bean
-	DefaultSessionFactory sessionFactory() {
+	DefaultSessionFactory sessionFactory(@Autowired MatrixFactory matrixFactory) {
 		// We don't require a DirectedLayerFactory for this demo - set null in constructor
-		return new DefaultSessionFactoryImpl(matrixFactory(), directedComponentFactory(), null, supervisedFeedForwardNeuralNetworkFactory(), null);
+		return new DefaultSessionFactoryImpl(matrixFactory, directedComponentFactory(matrixFactory), null, supervisedFeedForwardNeuralNetworkFactory(matrixFactory), null);
 	}
 
 	@Bean
@@ -94,9 +106,10 @@ public class YOLOv2Config {
 		return new DefaultDifferentiableActivationFunctionFactory();
 	}
 
+
 	@Bean
-	SupervisedFeedForwardNeuralNetworkFactory supervisedFeedForwardNeuralNetworkFactory() {
-		return new DefaultSupervisedFeedForwardNeuralNetworkFactory(directedComponentFactory());
+	SupervisedFeedForwardNeuralNetworkFactory supervisedFeedForwardNeuralNetworkFactory(@Autowired MatrixFactory matrixFactory) {
+		return new DefaultSupervisedFeedForwardNeuralNetworkFactory(directedComponentFactory(matrixFactory));
 	}
 	
 	@Bean
@@ -113,18 +126,18 @@ public class YOLOv2Config {
 	}
 	
 	@Bean
-	YOLOv2Factory yoloV2Factory() throws IOException {
-		return new DefaultYOLOv2Factory(sessionFactory(), matrixFactory(), YOLOv2Demo.class.getClassLoader());
+	YOLOv2Factory yoloV2Factory(@Autowired MatrixFactory matrixFactory) throws IOException {
+		return new DefaultYOLOv2Factory(sessionFactory(matrixFactory), matrixFactory, YOLOv2Demo.class.getClassLoader());
 	}
 	
 	@Bean
-	YOLOv2Labels yoloV2ClassificationNames() throws IOException {
-		return yoloV2Factory().createYoloV2Labels();
+	YOLOv2Labels yoloV2ClassificationNames(@Autowired MatrixFactory matrixFactory) throws IOException {
+		return yoloV2Factory(matrixFactory).createYoloV2Labels();
 	}
 	
 	@Bean
-	BoundingBoxExtractor boundingBoxExtractor() {
-		return new DefaultYOLOv2BoundingBoxExtractor(matrixFactory(), activationFunctionFactory().createActivationFunction(
+	BoundingBoxExtractor boundingBoxExtractor(@Autowired MatrixFactory matrixFactory) {
+		return new DefaultYOLOv2BoundingBoxExtractor(matrixFactory, activationFunctionFactory().createActivationFunction(
 				ActivationFunctionType.getBaseType(ActivationFunctionBaseType.SOFTMAX), 
 				new ActivationFunctionProperties()));
 	}
