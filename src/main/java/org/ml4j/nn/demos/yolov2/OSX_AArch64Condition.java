@@ -8,6 +8,6 @@ public class OSX_AArch64Condition implements Condition {
     @Override
     public boolean matches(ConditionContext conditionContext, AnnotatedTypeMetadata annotatedTypeMetadata) {
         return (conditionContext.getEnvironment().getProperty("os.name").indexOf("OS X") >= 0
-                || conditionContext.getEnvironment().getProperty("os.arch").indexOf("aarch64") >= 0);
+                && conditionContext.getEnvironment().getProperty("os.arch").indexOf("aarch64") >= 0);
     }
 }
