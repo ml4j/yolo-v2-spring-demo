@@ -21,6 +21,7 @@ import java.util.function.Supplier;
 
 import org.ml4j.MatrixFactory;
 import org.ml4j.jblas.JBlasRowMajorMatrixFactoryOptimised;
+import org.ml4j.nd4j.Nd4jRowMajorMatrixFactory;
 import org.ml4j.nn.activationfunctions.ActivationFunctionBaseType;
 import org.ml4j.nn.activationfunctions.ActivationFunctionProperties;
 import org.ml4j.nn.activationfunctions.ActivationFunctionType;
@@ -55,7 +56,7 @@ public class YOLOv2Config {
 
 	@Bean
 	MatrixFactory matrixFactory() {
-		return new JBlasRowMajorMatrixFactoryOptimised();
+		return new Nd4jRowMajorMatrixFactory();
 	}
 
 	@Bean
